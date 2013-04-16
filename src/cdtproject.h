@@ -39,7 +39,7 @@ public:
 	std::vector<std::string> cconfigurations();
 	TiXmlElement* cconfiguration(const std::string& id);
 
-	struct configuration
+	struct configuration_t
 	{
 		std::string name;
 		std::string artifact;
@@ -57,7 +57,7 @@ public:
 		// TODO represent build commands, folders and files.
 		struct build_folder
 		{
-
+			std::string path;
 		};
 
 		struct build_file
@@ -65,6 +65,8 @@ public:
 
 		};
 	};
+
+	configuration_t configuration(const std::string& cconfiguration_id);
 
 	TiXmlElement* cdtBuildSystem_configuration(const std::string& cconfiguration_id);
 };

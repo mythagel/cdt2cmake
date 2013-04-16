@@ -8,14 +8,14 @@
 #include "cdtproject.h"
 #include <stdexcept>
 
-cdt_project::configuration::Type resolve_artifact_type(const std::string& artifact_type)
+cdt_project::configuration_t::Type resolve_artifact_type(const std::string& artifact_type)
 {
 	if(artifact_type == "org.eclipse.cdt.build.core.buildArtefactType.exe")
-		return cdt_project::configuration::Type::Executable;
+		return cdt_project::configuration_t::Type::Executable;
 	else if(artifact_type == "org.eclipse.cdt.build.core.buildArtefactType.staticLib")
-		return cdt_project::configuration::Type::StaticLibrary;
+		return cdt_project::configuration_t::Type::StaticLibrary;
 	else if(artifact_type == "org.eclipse.cdt.build.core.buildArtefactType.sharedLib")
-		return cdt_project::configuration::Type::SharedLibrary;
+		return cdt_project::configuration_t::Type::SharedLibrary;
 	else
 		throw std::runtime_error("Unknown artifact type: " + artifact_type);
 }
@@ -157,6 +157,48 @@ TiXmlElement* cdt_project::cconfiguration(const std::string& id)
 	}
 
 	return nullptr;
+}
+
+cdt_project::configuration_t cdt_project::configuration(const std::string& cconfiguration_id)
+{
+	configuration_t conf;
+	auto configuration = cdtBuildSystem_configuration(cconfiguration_id);
+	throw_if(!configuration, "Unable to read configuration");
+
+	configuration->QueryStringAttribute("name", &conf.name);
+
+	configuration->QueryStringAttribute("artifactName", &conf.artifact);
+	if(conf.artifact == "${ProjName}")
+		conf.artifact = name();
+
+	configuration->QueryStringAttribute("preBuild", &conf.prebuild);
+	configuration->QueryStringAttribute("postBuild", &conf.postbuild);
+
+	std::string buildArtefactType;
+	configuration->QueryStringAttribute("buildArtefactType", &buildArtefactType);
+	conf.type = resolve_artifact_type(buildArtefactType);
+
+	for(auto build_instr = configuration->FirstChildElement(); build_instr; build_instr = build_instr->NextSiblingElement())
+	{
+		if(build_instr->ValueStr() == "folderInfo")
+		{
+			configuration_t::build_folder bf;
+			build_instr->QueryStringAttribute("resourcePath", &bf.path);
+
+			auto toolChain = build_instr->FirstChildElement("toolChain");
+			throw_if(!toolChain, "Unable to find toolChain node");
+		}
+		else if(build_instr->ValueStr() == "fileInfo")
+		{
+			// TODO
+		}
+		else
+		{
+			throw std::runtime_error("Unknown build node: " + build_instr->ValueStr());
+		}
+	}
+
+	return conf;
 }
 
 TiXmlElement* cdt_project::cdtBuildSystem_configuration(const std::string& cconfiguration_id)
