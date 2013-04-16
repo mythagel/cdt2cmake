@@ -18,29 +18,25 @@
 #include <sys/types.h>
 #include <libgen.h>
 #include <dirent.h>
+#include "sourcediscovery.h"
 
 void die_if(bool cond, const char* format, ...);
-bool is_c_source_filename(const std::string& filename);
-void find_sources(const std::string& base_path, const std::string& path, std::vector<std::string>& sources);
 
 int main(int argc, char* argv[])
 {
-	die_if(argc < 2, "%s: project path\n", argv[0]);
+	die_if(argc < 2, "%s: /path/to/eclipse/project/\n", argv[0]);
 
 	std::string project_base = argv[1];
 
-	die_if(project_base.empty(), "%s: project path\n", argv[0]);
+	die_if(project_base.empty(), "%s: /path/to/eclipse/project/\n", argv[0]);
 
 	if(project_base.back() != '/')
 		project_base += '/';
 
 	cdt_project cdtproject(project_base);
 
-	const std::string project_file = project_base + ".project";
-	const std::string cproject_file = project_base + ".cproject";
-
 	auto settings = cdtproject.settings();
-	die_if(!settings, "%s: Unable to find settings storageModule in '%s'\n", argv[0], cproject_file.c_str());
+	die_if(!settings, "%s: Unable to find settings storageModule\n", argv[0]);
 
 	Project master_project;
 	master_project.name = cdtproject.name();
@@ -51,7 +47,7 @@ int main(int argc, char* argv[])
 		Project::Artifact& artifact = project.artifact;
 		if(!cconfiguration->Attribute("id"))
 		{
-			fprintf(stderr, "%s: cconfiguration without 'id' in '%s'; skipping\n", argv[0], cproject_file.c_str());
+			fprintf(stderr, "%s: cconfiguration without 'id'; skipping\n", argv[0]);
 			continue;
 		}
 		const std::string id = cconfiguration->Attribute("id");
@@ -69,30 +65,30 @@ int main(int argc, char* argv[])
 
 		if(!cdtBuildSystem)
 		{
-			fprintf(stderr, "%s: Unable to find cdtBuildSystem storageModule in '%s'; skipping\n", argv[0], cproject_file.c_str());
+			fprintf(stderr, "%s: Unable to find cdtBuildSystem storageModule; skipping\n", argv[0]);
 			continue;
 		}
 
 		const TiXmlElement* configuration = cdtBuildSystem->FirstChildElement("configuration");
 		if(!configuration)
 		{
-			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration in '%s'; skipping\n", argv[0], cproject_file.c_str());
+			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration; skipping\n", argv[0]);
 			continue;
 		}
 
 		if(!configuration->Attribute("name"))
 		{
-			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration['name'] in '%s'; skipping\n", argv[0], cproject_file.c_str());
+			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration['name']; skipping\n", argv[0]);
 			continue;
 		}
 		if(!configuration->Attribute("artifactName"))
 		{
-			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration['artifactName'] in '%s'; skipping\n", argv[0], cproject_file.c_str());
+			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration['artifactName']; skipping\n", argv[0]);
 			continue;
 		}
 		if(!configuration->Attribute("buildArtefactType"))
 		{
-			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration['buildArtefactType'] in '%s'; skipping\n", argv[0], cproject_file.c_str());
+			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration['buildArtefactType']; skipping\n", argv[0]);
 			continue;
 		}
 
@@ -120,15 +116,15 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
-			fprintf(stderr, "%s: Unknown artifact type '%s' in '%s'\n", argv[0], buildArtefactType.c_str(), cproject_file.c_str());
+			fprintf(stderr, "%s: Unknown artifact type '%s'\n", argv[0], buildArtefactType.c_str());
 			return 1;
 		}
 
 		const TiXmlElement* folderInfo = configuration->FirstChildElement("folderInfo");
-		die_if(!folderInfo, "%s: Unable to find cdtBuildSystem/configuration/folderInfo in '%s'\n", argv[0], cproject_file.c_str());
+		die_if(!folderInfo, "%s: Unable to find cdtBuildSystem/configuration/folderInfo\n", argv[0]);
 
 		const TiXmlElement* toolChain = folderInfo->FirstChildElement("toolChain");
-		die_if(!toolChain, "%s: Unable to find cdtBuildSystem/configuration/folderInfo/toolChain in '%s'\n", argv[0], cproject_file.c_str());
+		die_if(!toolChain, "%s: Unable to find cdtBuildSystem/configuration/folderInfo/toolChain\n", argv[0]);
 
 		for(const TiXmlElement* tool = toolChain->FirstChildElement("tool"); tool; tool = tool->NextSiblingElement("tool"))
 		{
@@ -136,7 +132,7 @@ int main(int argc, char* argv[])
 			{
 				if(!option->Attribute("superClass"))
 				{
-					fprintf(stderr, "%s: tool/option without 'superClass' in '%s'; skipping\n", argv[0], cproject_file.c_str());
+					fprintf(stderr, "%s: tool/option without 'superClass'; skipping\n", argv[0]);
 					continue;
 				}
 				const std::string superClass = option->Attribute("superClass");
@@ -147,7 +143,7 @@ int main(int argc, char* argv[])
 					{
 						if(!listOptionValue->Attribute("value"))
 						{
-							fprintf(stderr, "%s: tool/option/listOptionValue without 'value' in '%s'; skipping\n", argv[0], cproject_file.c_str());
+							fprintf(stderr, "%s: tool/option/listOptionValue without 'value'; skipping\n", argv[0]);
 							continue;
 						}
 						const std::string value = listOptionValue->Attribute("value");
@@ -160,7 +156,7 @@ int main(int argc, char* argv[])
 					{
 						if(!listOptionValue->Attribute("value"))
 						{
-							fprintf(stderr, "%s: tool/option/listOptionValue without 'value' in '%s'; skipping\n", argv[0], cproject_file.c_str());
+							fprintf(stderr, "%s: tool/option/listOptionValue without 'value'; skipping\n", argv[0]);
 							continue;
 						}
 						const std::string value = listOptionValue->Attribute("value");
@@ -173,7 +169,7 @@ int main(int argc, char* argv[])
 					{
 						if(!listOptionValue->Attribute("value"))
 						{
-							fprintf(stderr, "%s: tool/option/listOptionValue without 'value' in '%s'; skipping\n", argv[0], cproject_file.c_str());
+							fprintf(stderr, "%s: tool/option/listOptionValue without 'value'; skipping\n", argv[0]);
 							continue;
 						}
 						const std::string value = listOptionValue->Attribute("value");
@@ -184,7 +180,7 @@ int main(int argc, char* argv[])
 				{
 					if(!option->Attribute("value"))
 					{
-						fprintf(stderr, "%s: tool/option without 'value' in '%s'; skipping\n", argv[0], cproject_file.c_str());
+						fprintf(stderr, "%s: tool/option without 'value'; skipping\n", argv[0]);
 						continue;
 					}
 					const std::string value = option->Attribute("value");
@@ -200,17 +196,26 @@ int main(int argc, char* argv[])
 		}
 
 		std::vector<std::string> sources;
-		find_sources(project_base, "", sources);
+//		find_sources(project_base, "", sources);
 		project.artifact.sources = std::set<std::string>(sources.begin(), sources.end());
 
-		mkdir(project.name.c_str(), 0700);
-		std::string s = project.name + "/" + configuration_name;
-		mkdir(s.c_str(), 0700);
+		{
+			auto sources = find_sources(project_base);
+			for(auto x : sources)
+			{
+				std::cout << x.name << " : " << x.path << "\n";
+			}
+		}
 
+//		mkdir(project.name.c_str(), 0700);
+//		std::string s = project.name + "/" + configuration_name;
+//		mkdir(s.c_str(), 0700);
+//
 		char buf[2048];
 		snprintf(buf, sizeof(buf), "%s/%s/CMakeLists.txt", project.name.c_str(), configuration_name.c_str());
 
-		FILE* f = fopen(buf, "w");
+//		FILE* f = fopen(buf, "w");
+		FILE* f = stdout;
 		if(f)
 		{
 			project.clean();
@@ -234,60 +239,5 @@ void die_if(bool cond, const char* format, ...)
 		vfprintf(stderr, format, ap);
 		va_end(ap);
 		exit(1);
-	}
-}
-
-bool is_c_source_filename(const std::string& filename)
-{
-	static const auto c_types = {".c", ".C", "c++", ".cc", ".cpp", ".cxx"};
-
-	std::string::size_type pos = filename.rfind('.');
-	if(pos == std::string::npos)
-		return false;
-
-	auto file_type = filename.substr(pos);
-	return std::find(begin(c_types), end(c_types), file_type) != end(c_types);
-}
-
-void find_sources(const std::string& base_path, const std::string& path, std::vector<std::string>& sources)
-{
-	std::string abs_path = base_path;
-
-	if(!path.empty())
-		abs_path += "/" + path;
-
-	DIR* d = opendir(abs_path.c_str());
-	if (d)
-	{
-		struct dirent *dir;
-		while ((dir = readdir(d)) != NULL)
-		{
-			std::string name = dir->d_name;
-			if(dir->d_type == DT_DIR)
-			{
-				if(name == "." || name == "..")
-					continue;
-				std::string rel_path;
-				if(!path.empty())
-					rel_path = path + "/" + name;
-				else
-					rel_path = name;
-				find_sources(base_path, rel_path, sources);
-			}
-			else if(dir->d_type == DT_REG)
-			{
-				if(is_c_source_filename(name))
-				{
-					std::string rel_source;
-					if(!path.empty())
-						rel_source = path + "/" + name;
-					else
-						rel_source = name;
-
-					sources.push_back(rel_source);
-				}
-			}
-		}
-		closedir(d);
 	}
 }
