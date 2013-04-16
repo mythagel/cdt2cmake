@@ -54,7 +54,16 @@ public:
 			SharedLibrary
 		} type;
 
-		// represent build commands, folders and files.
+		// TODO represent build commands, folders and files.
+		struct build_folder
+		{
+
+		};
+
+		struct build_file
+		{
+
+		};
 	};
 
 	TiXmlElement* cdtBuildSystem_configuration(const std::string& cconfiguration_id);
