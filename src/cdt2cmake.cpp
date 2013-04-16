@@ -6,6 +6,7 @@
  *     License: New BSD License
  */
 #include "Project.h"
+#include "cdtproject.h"
 #include <tinyxml.h>
 #include <cstdio>
 #include <string>
@@ -17,36 +18,10 @@
 #include <sys/types.h>
 #include <libgen.h>
 #include <dirent.h>
-#include <stdexcept>
 
 void die_if(bool cond, const char* format, ...);
 bool is_c_source_filename(const std::string& filename);
 void find_sources(const std::string& base_path, const std::string& path, std::vector<std::string>& sources);
-
-struct eclipse_cdt_project
-{
-	TiXmlDocument project;
-	TiXmlDocument cproject;
-
-	eclipse_cdt_project(const std::string& project_base)
-	{
-		const std::string project_file = project_base + ".project";
-		const std::string cproject_file = project_base + ".cproject";
-
-		if(!project.LoadFile(project_file))
-			throw std::runtime_error("Unable to parse project file " + project_file);
-		if(!cproject.LoadFile(cproject_file))
-			throw std::runtime_error("Unable to parse project file " + cproject_file);
-	}
-
-	/*
-	 * Implement interface that reads different cdt / eclipse
-	 * project file formats and extracts enough information to
-	 * create a cmake project from it.
-	 * Expand the Project structure to represent a cmake project
-	 * more completely.
-	 */
-};
 
 int main(int argc, char* argv[])
 {
@@ -59,62 +34,16 @@ int main(int argc, char* argv[])
 	if(project_base.back() != '/')
 		project_base += '/';
 
+	cdt_project cdtproject(project_base);
+
 	const std::string project_file = project_base + ".project";
 	const std::string cproject_file = project_base + ".cproject";
 
-	TiXmlDocument doc;
-	die_if(!doc.LoadFile(cproject_file), "%s: Unable to parse '%s'\n", argv[0], cproject_file.c_str());
-
-	const TiXmlElement* root = doc.RootElement();
-	die_if(root->ValueStr() != "cproject", "%s: Unrecognised root node '%s' in '%s'\n", argv[0], root->Value(), cproject_file.c_str());
-
-
-	const TiXmlElement* settings(NULL);
-	{
-		for(const TiXmlElement* storageModule = root->FirstChildElement("storageModule"); storageModule; storageModule = storageModule->NextSiblingElement("storageModule"))
-		{
-			const char* moduleId  = storageModule->Attribute("moduleId");
-			if(moduleId && std::string(moduleId) == "org.eclipse.cdt.core.settings")
-			{
-				settings = storageModule;
-				break;
-			}
-		}
-
-		die_if(!settings, "%s: Unable to find settings storageModule in '%s'\n", argv[0], cproject_file.c_str());
-	}
-
-	const TiXmlElement* project_stormod(NULL);
-	{
-		const TiXmlElement* cdtBuildSystem(NULL);
-		for(const TiXmlElement* storageModule = root->FirstChildElement("storageModule"); storageModule; storageModule = storageModule->NextSiblingElement("storageModule"))
-		{
-			const char* moduleId  = storageModule->Attribute("moduleId");
-			if(moduleId && std::string(moduleId) == "cdtBuildSystem")
-			{
-				cdtBuildSystem = storageModule;
-				break;
-			}
-		}
-
-		die_if(!cdtBuildSystem, "%s: Unable to find cdtBuildSystem storageModule in '%s'\n", argv[0], cproject_file.c_str());
-
-		project_stormod = cdtBuildSystem->FirstChildElement("project");
-
-		die_if(!project_stormod, "%s: Unable to find cdtBuildSystem/project in '%s'\n", argv[0], cproject_file.c_str());
-	}
-
-	die_if(!project_stormod->Attribute("id"), "%s: Unable to find cdtBuildSystem/project['id'] in '%s'\n", argv[0], cproject_file.c_str());
+	auto settings = cdtproject.settings();
+	die_if(!settings, "%s: Unable to find settings storageModule in '%s'\n", argv[0], cproject_file.c_str());
 
 	Project master_project;
-	{
-		master_project.name = project_stormod->Attribute("id");
-		std::string::size_type pos = master_project.name.find(".cdt.");
-		if(pos != std::string::npos)
-		{
-			master_project.name = master_project.name.substr(0, pos);
-		}
-	}
+	master_project.name = cdtproject.name();
 
 	for(const TiXmlElement* cconfiguration = settings->FirstChildElement("cconfiguration"); cconfiguration; cconfiguration = cconfiguration->NextSiblingElement("cconfiguration"))
 	{
