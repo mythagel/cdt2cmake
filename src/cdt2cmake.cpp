@@ -20,15 +20,43 @@
 #include <dirent.h>
 #include "sourcediscovery.h"
 
+//#include <boost/program_options.hpp>
+
 void die_if(bool cond, const char* format, ...);
 
+/*
+ * Interface thoughts
+ * cdt2cmake /path/to/project
+ * --generate - generate CMakeLists.txt files in the project path
+ * Without generate cmake files will be written to stdout with the path/filename specified first.
+ */
 int main(int argc, char* argv[])
 {
-	die_if(argc < 2, "%s: /path/to/eclipse/project/\n", argv[0]);
+//	namespace po = boost::program_options;
+//
+//	po::options_description desc(argv[0]);
+//	desc.add_options()
+//		("help", "display this help and exit")
+//		;
+//
+//	po::variables_map vm;
+//	po::store(po::parse_command_line(argc, argv, desc), vm);
+//	po::notify(vm);
+//
+//	if(vm.count("help"))
+//	{
+//		std::cout << desc << '\n';
+//		return 1;
+//	}
 
-	std::string project_base = argv[1];
+	std::vector<std::string> args{argv, argv+argc};
+	assert(!args.empty());
 
-	die_if(project_base.empty(), "%s: /path/to/eclipse/project/\n", argv[0]);
+	die_if(args.size() < 2, "%s: /path/to/eclipse/project/\n", args[0].c_str());
+
+	std::string project_base = args[1];
+
+	die_if(project_base.empty(), "%s: /path/to/eclipse/project/\n", args[0].c_str());
 
 	if(project_base.back() != '/')
 		project_base += '/';
@@ -36,7 +64,7 @@ int main(int argc, char* argv[])
 	cdt_project cdtproject(project_base);
 
 	auto settings = cdtproject.settings();
-	die_if(!settings, "%s: Unable to find settings storageModule\n", argv[0]);
+	die_if(!settings, "%s: Unable to find settings storageModule\n", args[0].c_str());
 
 	Project master_project;
 	master_project.name = cdtproject.name();
@@ -47,7 +75,7 @@ int main(int argc, char* argv[])
 		Project::Artifact& artifact = project.artifact;
 		if(!cconfiguration->Attribute("id"))
 		{
-			fprintf(stderr, "%s: cconfiguration without 'id'; skipping\n", argv[0]);
+			fprintf(stderr, "%s: cconfiguration without 'id'; skipping\n", args[0].c_str());
 			continue;
 		}
 		const std::string id = cconfiguration->Attribute("id");
@@ -65,30 +93,30 @@ int main(int argc, char* argv[])
 
 		if(!cdtBuildSystem)
 		{
-			fprintf(stderr, "%s: Unable to find cdtBuildSystem storageModule; skipping\n", argv[0]);
+			fprintf(stderr, "%s: Unable to find cdtBuildSystem storageModule; skipping\n", args[0].c_str());
 			continue;
 		}
 
 		const TiXmlElement* configuration = cdtBuildSystem->FirstChildElement("configuration");
 		if(!configuration)
 		{
-			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration; skipping\n", argv[0]);
+			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration; skipping\n", args[0].c_str());
 			continue;
 		}
 
 		if(!configuration->Attribute("name"))
 		{
-			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration['name']; skipping\n", argv[0]);
+			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration['name']; skipping\n", args[0].c_str());
 			continue;
 		}
 		if(!configuration->Attribute("artifactName"))
 		{
-			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration['artifactName']; skipping\n", argv[0]);
+			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration['artifactName']; skipping\n", args[0].c_str());
 			continue;
 		}
 		if(!configuration->Attribute("buildArtefactType"))
 		{
-			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration['buildArtefactType']; skipping\n", argv[0]);
+			fprintf(stderr, "%s: Unable to find cdtBuildSystem/configuration['buildArtefactType']; skipping\n", args[0].c_str());
 			continue;
 		}
 
@@ -116,15 +144,15 @@ int main(int argc, char* argv[])
 		}
 		else
 		{
-			fprintf(stderr, "%s: Unknown artifact type '%s'\n", argv[0], buildArtefactType.c_str());
+			fprintf(stderr, "%s: Unknown artifact type '%s'\n", args[0].c_str(), buildArtefactType.c_str());
 			return 1;
 		}
 
 		const TiXmlElement* folderInfo = configuration->FirstChildElement("folderInfo");
-		die_if(!folderInfo, "%s: Unable to find cdtBuildSystem/configuration/folderInfo\n", argv[0]);
+		die_if(!folderInfo, "%s: Unable to find cdtBuildSystem/configuration/folderInfo\n", args[0].c_str());
 
 		const TiXmlElement* toolChain = folderInfo->FirstChildElement("toolChain");
-		die_if(!toolChain, "%s: Unable to find cdtBuildSystem/configuration/folderInfo/toolChain\n", argv[0]);
+		die_if(!toolChain, "%s: Unable to find cdtBuildSystem/configuration/folderInfo/toolChain\n", args[0].c_str());
 
 		for(const TiXmlElement* tool = toolChain->FirstChildElement("tool"); tool; tool = tool->NextSiblingElement("tool"))
 		{
@@ -132,7 +160,7 @@ int main(int argc, char* argv[])
 			{
 				if(!option->Attribute("superClass"))
 				{
-					fprintf(stderr, "%s: tool/option without 'superClass'; skipping\n", argv[0]);
+					fprintf(stderr, "%s: tool/option without 'superClass'; skipping\n", args[0].c_str());
 					continue;
 				}
 				const std::string superClass = option->Attribute("superClass");
@@ -143,7 +171,7 @@ int main(int argc, char* argv[])
 					{
 						if(!listOptionValue->Attribute("value"))
 						{
-							fprintf(stderr, "%s: tool/option/listOptionValue without 'value'; skipping\n", argv[0]);
+							fprintf(stderr, "%s: tool/option/listOptionValue without 'value'; skipping\n", args[0].c_str());
 							continue;
 						}
 						const std::string value = listOptionValue->Attribute("value");
@@ -156,7 +184,7 @@ int main(int argc, char* argv[])
 					{
 						if(!listOptionValue->Attribute("value"))
 						{
-							fprintf(stderr, "%s: tool/option/listOptionValue without 'value'; skipping\n", argv[0]);
+							fprintf(stderr, "%s: tool/option/listOptionValue without 'value'; skipping\n", args[0].c_str());
 							continue;
 						}
 						const std::string value = listOptionValue->Attribute("value");
@@ -169,7 +197,7 @@ int main(int argc, char* argv[])
 					{
 						if(!listOptionValue->Attribute("value"))
 						{
-							fprintf(stderr, "%s: tool/option/listOptionValue without 'value'; skipping\n", argv[0]);
+							fprintf(stderr, "%s: tool/option/listOptionValue without 'value'; skipping\n", args[0].c_str());
 							continue;
 						}
 						const std::string value = listOptionValue->Attribute("value");
@@ -180,7 +208,7 @@ int main(int argc, char* argv[])
 				{
 					if(!option->Attribute("value"))
 					{
-						fprintf(stderr, "%s: tool/option without 'value'; skipping\n", argv[0]);
+						fprintf(stderr, "%s: tool/option without 'value'; skipping\n", args[0].c_str());
 						continue;
 					}
 					const std::string value = option->Attribute("value");
