@@ -7,6 +7,7 @@
 
 #include "cdtproject.h"
 #include <stdexcept>
+#include "tixml_iterator.h"
 
 cdt_project::configuration_t::Type resolve_artifact_type(const std::string& artifact_type)
 {
@@ -98,7 +99,7 @@ std::vector<std::string> cdt_project::natures()
 		return {};
 
 	std::vector<std::string> nature_list;
-	for(auto nature = natures->FirstChildElement("nature"); nature; nature = nature->NextSiblingElement("nature"))
+	for(auto nature : elements_named(natures, "nature"))
 	{
 		auto name = nature->GetText();
 		if(!name)
@@ -111,7 +112,7 @@ std::vector<std::string> cdt_project::natures()
 TiXmlElement* cdt_project::settings()
 {
 	auto root = cproject.RootElement();
-	for(auto storageModule = root->FirstChildElement("storageModule"); storageModule; storageModule = storageModule->NextSiblingElement("storageModule"))
+	for(auto storageModule : elements_named(root, "storageModule"))
 	{
 		auto moduleId  = storageModule->Attribute("moduleId");
 		if(moduleId && std::string(moduleId) == "org.eclipse.cdt.core.settings")
@@ -128,7 +129,7 @@ std::vector<std::string> cdt_project::cconfigurations()
 		return {};
 
 	std::vector<std::string> configs;
-	for(auto cconfiguration = cdt_settings->FirstChildElement("cconfiguration"); cconfiguration; cconfiguration = cconfiguration->NextSiblingElement("cconfiguration"))
+	for(auto cconfiguration : elements_named(cdt_settings, "cconfiguration"))
 	{
 		auto id = cconfiguration->Attribute("id");
 		if(!id)
@@ -146,7 +147,7 @@ TiXmlElement* cdt_project::cconfiguration(const std::string& id)
 	if(!cdt_settings)
 		return nullptr;
 
-	for(auto cconfiguration = cdt_settings->FirstChildElement("cconfiguration"); cconfiguration; cconfiguration = cconfiguration->NextSiblingElement("cconfiguration"))
+	for(auto cconfiguration : elements_named(cdt_settings, "cconfiguration"))
 	{
 		auto cid = cconfiguration->Attribute("id");
 		if(!cid)
@@ -187,6 +188,94 @@ cdt_project::configuration_t cdt_project::configuration(const std::string& cconf
 
 			auto toolChain = build_instr->FirstChildElement("toolChain");
 			throw_if(!toolChain, "Unable to find toolChain node");
+
+//			std::set<std::string> cpp_includes;
+//			std::set<std::string> c_includes;
+//
+//			std::vector<std::string> cpp_libs;
+//			std::vector<std::string> c_libs;
+//
+//			std::set<std::string> cpp_lib_paths;
+//			std::set<std::string> c_lib_paths;
+
+			for(auto tool : elements_named(toolChain, "tool"))
+			{
+				std::string superClass;
+				tool->QueryStringAttribute("superClass", &superClass);
+
+				if(superClass.find("cpp.compiler") != std::string::npos)
+				{
+
+				}
+				else if(superClass.find("c.compiler") != std::string::npos)
+				{
+
+				}
+				else if(superClass.find("cpp.linker") != std::string::npos)
+				{
+
+				}
+				else if(superClass.find("c.linker") != std::string::npos)
+				{
+
+				}
+
+				for(auto option : elements_named(tool, "option"))
+				{
+					if(!option->Attribute("superClass"))
+						continue;
+
+					const std::string superClass = option->Attribute("superClass");
+
+					if(superClass == "gnu.c.compiler.option.include.paths" || superClass == "gnu.cpp.compiler.option.include.paths")
+					{
+						for(auto listOptionValue : elements_named(option, "listOptionValue"))
+						{
+							if(!listOptionValue->Attribute("value"))
+								continue;
+
+							const std::string value = listOptionValue->Attribute("value");
+//							artifact.includes.insert(value);
+						}
+					}
+					else if(superClass == "gnu.cpp.link.option.libs" || superClass == "gnu.c.link.option.libs")
+					{
+						for(auto listOptionValue : elements_named(option, "listOptionValue"))
+						{
+							if(!listOptionValue->Attribute("value"))
+								continue;
+
+							const std::string value = listOptionValue->Attribute("value");
+//							artifact.libs.push_back(value);
+						}
+					}
+					else if(superClass == "gnu.cpp.link.option.paths" || superClass == "gnu.c.link.option.paths")
+					{
+						for(auto listOptionValue : elements_named(option, "listOptionValue"))
+						{
+							if(!listOptionValue->Attribute("value"))
+								continue;
+
+							const std::string value = listOptionValue->Attribute("value");
+//							artifact.lib_paths.insert(value);
+						}
+					}
+					else if(superClass == "gnu.cpp.compiler.option.other.other")
+					{
+						if(!option->Attribute("value"))
+							continue;
+
+						const std::string value = option->Attribute("value");
+
+//						if(artifact.other_flags.find(value) == std::string::npos)
+//							artifact.other_flags += value;
+					}
+					else
+					{
+	//					option->Print(stdout, 3);
+					}
+				}
+			}
 		}
 		else if(build_instr->ValueStr() == "fileInfo")
 		{

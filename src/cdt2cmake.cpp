@@ -19,6 +19,7 @@
 #include <libgen.h>
 #include <dirent.h>
 #include "sourcediscovery.h"
+#include "tixml_iterator.h"
 
 //#include <boost/program_options.hpp>
 
@@ -69,7 +70,7 @@ int main(int argc, char* argv[])
 	Project master_project;
 	master_project.name = cdtproject.name();
 
-	for(const TiXmlElement* cconfiguration = settings->FirstChildElement("cconfiguration"); cconfiguration; cconfiguration = cconfiguration->NextSiblingElement("cconfiguration"))
+	for(auto cconfiguration : elements_named(settings, "cconfiguration"))
 	{
 		Project project = master_project;
 		Project::Artifact& artifact = project.artifact;
@@ -81,7 +82,7 @@ int main(int argc, char* argv[])
 		const std::string id = cconfiguration->Attribute("id");
 
 		const TiXmlElement* cdtBuildSystem(NULL);
-		for(const TiXmlElement* storageModule = cconfiguration->FirstChildElement("storageModule"); storageModule; storageModule = storageModule->NextSiblingElement("storageModule"))
+		for(auto storageModule : elements_named(cconfiguration, "storageModule"))
 		{
 			const char* moduleId  = storageModule->Attribute("moduleId");
 			if(moduleId && std::string(moduleId) == "cdtBuildSystem")
