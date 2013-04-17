@@ -167,11 +167,7 @@ cdt_project::configuration_t cdt_project::configuration(const std::string& cconf
 	throw_if(!configuration, "Unable to read configuration");
 
 	configuration->QueryStringAttribute("name", &conf.name);
-
 	configuration->QueryStringAttribute("artifactName", &conf.artifact);
-	if(conf.artifact == "${ProjName}")
-		conf.artifact = name();
-
 	configuration->QueryStringAttribute("preBuild", &conf.prebuild);
 	configuration->QueryStringAttribute("postBuild", &conf.postbuild);
 
