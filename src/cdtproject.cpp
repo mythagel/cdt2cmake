@@ -201,7 +201,22 @@ cdt_project::configuration_t cdt_project::configuration(const std::string& cconf
 
 				if(superClass.find("cpp.compiler") != std::string::npos)
 				{
+					for(auto option : elements_named(tool, "option"))
+					{
+						std::string superClass;
+						option->QueryStringAttribute("superClass", &superClass);
+						if(superClass == "cpp.compiler.option.include.paths")
+						{
+							for(auto listOptionValue : elements_named(option, "listOptionValue"))
+							{
+								if(!listOptionValue->Attribute("value"))
+									continue;
 
+								const std::string value = listOptionValue->Attribute("value");
+								bf.cpp_includes.insert(value);
+							}
+						}
+					}
 				}
 				else if(superClass.find("c.compiler") != std::string::npos)
 				{
@@ -276,6 +291,8 @@ cdt_project::configuration_t cdt_project::configuration(const std::string& cconf
 		else if(build_instr->ValueStr() == "fileInfo")
 		{
 			// TODO
+			configuration_t::build_file bf;
+			build_instr->QueryStringAttribute("resourcePath", &bf.file);
 		}
 		else
 		{

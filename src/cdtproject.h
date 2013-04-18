@@ -72,7 +72,7 @@ public:
 
 		struct build_file
 		{
-
+			std::string file;
 		};
 	};
 
