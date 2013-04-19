@@ -64,6 +64,12 @@ int main(int argc, char* argv[])
 
 	cdt_project cdtproject(project_base);
 
+	{
+		auto confs = cdtproject.cconfigurations();
+		for(const auto& conf : confs)
+			std::cout << cdtproject.configuration(conf).str() << "\n";
+	}
+
 	auto settings = cdtproject.settings();
 	die_if(!settings, "%s: Unable to find settings storageModule\n", args[0].c_str());
 

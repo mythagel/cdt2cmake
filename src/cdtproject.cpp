@@ -7,6 +7,8 @@
 
 #include "cdtproject.h"
 #include <stdexcept>
+#include <sstream>
+#include <iterator>
 #include "tixml_iterator.h"
 
 cdt_project::configuration_t::Type resolve_artifact_type(const std::string& artifact_type)
@@ -160,6 +162,68 @@ TiXmlElement* cdt_project::cconfiguration(const std::string& id)
 	return nullptr;
 }
 
+std::string cdt_project::configuration_t::str() const
+{
+	std::stringstream s;
+
+	s << "name: '" << name << "'\n";
+	s << "artifact: '" << artifact << "'\n";
+
+	s << "prebuild: '" << prebuild << "'\n";
+	s << "postbuild: '" << postbuild << "'\n";
+
+	switch(type)
+	{
+		case Type::Executable:
+			s << "type: '" << "Executable" << "'\n";
+			break;
+		case Type::StaticLibrary:
+			s << "type: '" << "Static Library" << "'\n";
+			break;
+		case Type::SharedLibrary:
+			s << "type: '" << "Shared Library" << "'\n";
+			break;
+	}
+
+	for(auto& bf : build_folders)
+	{
+		s << "folder: '" << bf.path << "' {\n";
+		s << "  cpp_includes: ";
+		std::copy(bf.cpp.compiler.includes.begin(), bf.cpp.compiler.includes.end(), std::ostream_iterator<std::string>(s, ", "));
+		s << "\n";
+
+		s << "  c_includes: ";
+		std::copy(bf.c.compiler.includes.begin(), bf.c.compiler.includes.end(), std::ostream_iterator<std::string>(s, ", "));
+		s << "\n";
+
+		s << "  cpp_libs: ";
+		std::copy(bf.cpp.linker.libs.begin(), bf.cpp.linker.libs.end(), std::ostream_iterator<std::string>(s, ", "));
+		s << "\n";
+
+		s << "  c_libs: ";
+		std::copy(bf.c.linker.libs.begin(), bf.c.linker.libs.end(), std::ostream_iterator<std::string>(s, ", "));
+		s << "\n";
+
+		s << "  cpp_lib_paths: ";
+		std::copy(bf.cpp.linker.lib_paths.begin(), bf.cpp.linker.lib_paths.end(), std::ostream_iterator<std::string>(s, ", "));
+		s << "\n";
+
+		s << "  c_lib_paths: ";
+		std::copy(bf.c.linker.lib_paths.begin(), bf.c.linker.lib_paths.end(), std::ostream_iterator<std::string>(s, ", "));
+		s << "\n";
+
+		s << "}\n";
+	}
+
+	for(auto& bf : build_files)
+	{
+		s << "file: '" << bf.file << "' {\n";
+		s << "}\n";
+	}
+
+	return s.str();
+}
+
 cdt_project::configuration_t cdt_project::configuration(const std::string& cconfiguration_id)
 {
 	configuration_t conf;
@@ -168,8 +232,8 @@ cdt_project::configuration_t cdt_project::configuration(const std::string& cconf
 
 	configuration->QueryStringAttribute("name", &conf.name);
 	configuration->QueryStringAttribute("artifactName", &conf.artifact);
-	configuration->QueryStringAttribute("preBuild", &conf.prebuild);
-	configuration->QueryStringAttribute("postBuild", &conf.postbuild);
+	configuration->QueryStringAttribute("prebuildStep", &conf.prebuild);
+	configuration->QueryStringAttribute("postbuildStep", &conf.postbuild);
 
 	std::string buildArtefactType;
 	configuration->QueryStringAttribute("buildArtefactType", &buildArtefactType);
@@ -179,25 +243,32 @@ cdt_project::configuration_t cdt_project::configuration(const std::string& cconf
 	{
 		if(build_instr->ValueStr() == "folderInfo")
 		{
-			configuration_t::build_folder bf;
+			conf.build_folders.emplace_back();
+			configuration_t::build_folder& bf = conf.build_folders.back();
+
 			build_instr->QueryStringAttribute("resourcePath", &bf.path);
 
 			auto toolChain = build_instr->FirstChildElement("toolChain");
 			throw_if(!toolChain, "Unable to find toolChain node");
 
-//			std::set<std::string> cpp_includes;
-//			std::set<std::string> c_includes;
-//
-//			std::vector<std::string> cpp_libs;
-//			std::vector<std::string> c_libs;
-//
-//			std::set<std::string> cpp_lib_paths;
-//			std::set<std::string> c_lib_paths;
+			auto extract_option_list = [](TiXmlElement* option, std::vector<std::string>& list)
+			{
+				for(auto listOptionValue : elements_named(option, "listOptionValue"))
+				{
+					if(!listOptionValue->Attribute("value"))
+						continue;
+
+					const std::string value = listOptionValue->Attribute("value");
+					list.push_back(value);
+				}
+			};
 
 			for(auto tool : elements_named(toolChain, "tool"))
 			{
 				std::string superClass;
 				tool->QueryStringAttribute("superClass", &superClass);
+
+				fprintf(stderr, "tool: %s\n", superClass.c_str());
 
 				if(superClass.find("cpp.compiler") != std::string::npos)
 				{
@@ -205,93 +276,63 @@ cdt_project::configuration_t cdt_project::configuration(const std::string& cconf
 					{
 						std::string superClass;
 						option->QueryStringAttribute("superClass", &superClass);
-						if(superClass == "cpp.compiler.option.include.paths")
-						{
-							for(auto listOptionValue : elements_named(option, "listOptionValue"))
-							{
-								if(!listOptionValue->Attribute("value"))
-									continue;
 
-								const std::string value = listOptionValue->Attribute("value");
-								bf.cpp_includes.insert(value);
-							}
-						}
+						fprintf(stderr, "option: %s\n", superClass.c_str());
+
+						if(superClass.find("cpp.compiler.option.include.paths") != std::string::npos)
+							extract_option_list(option, bf.cpp.compiler.includes);
 					}
 				}
 				else if(superClass.find("c.compiler") != std::string::npos)
 				{
+					for(auto option : elements_named(tool, "option"))
+					{
+						std::string superClass;
+						option->QueryStringAttribute("superClass", &superClass);
 
+						fprintf(stderr, "option: %s\n", superClass.c_str());
+
+						if(superClass.find("c.compiler.option.include.paths") != std::string::npos)
+							extract_option_list(option, bf.c.compiler.includes);
+					}
 				}
 				else if(superClass.find("cpp.linker") != std::string::npos)
 				{
+					for(auto option : elements_named(tool, "option"))
+					{
+						std::string superClass;
+						option->QueryStringAttribute("superClass", &superClass);
 
+						fprintf(stderr, "option: %s\n", superClass.c_str());
+
+						if(superClass.find("cpp.link.option.libs") != std::string::npos)
+							extract_option_list(option, bf.cpp.linker.libs);
+						else if(superClass.find("cpp.link.option.paths") != std::string::npos)
+							extract_option_list(option, bf.cpp.linker.lib_paths);
+					}
 				}
 				else if(superClass.find("c.linker") != std::string::npos)
 				{
-
-				}
-
-				for(auto option : elements_named(tool, "option"))
-				{
-					if(!option->Attribute("superClass"))
-						continue;
-
-					const std::string superClass = option->Attribute("superClass");
-
-					if(superClass == "gnu.c.compiler.option.include.paths" || superClass == "gnu.cpp.compiler.option.include.paths")
+					for(auto option : elements_named(tool, "option"))
 					{
-						for(auto listOptionValue : elements_named(option, "listOptionValue"))
-						{
-							if(!listOptionValue->Attribute("value"))
-								continue;
+						std::string superClass;
+						option->QueryStringAttribute("superClass", &superClass);
 
-							const std::string value = listOptionValue->Attribute("value");
-//							artifact.includes.insert(value);
-						}
-					}
-					else if(superClass == "gnu.cpp.link.option.libs" || superClass == "gnu.c.link.option.libs")
-					{
-						for(auto listOptionValue : elements_named(option, "listOptionValue"))
-						{
-							if(!listOptionValue->Attribute("value"))
-								continue;
+						fprintf(stderr, "option: %s\n", superClass.c_str());
 
-							const std::string value = listOptionValue->Attribute("value");
-//							artifact.libs.push_back(value);
-						}
-					}
-					else if(superClass == "gnu.cpp.link.option.paths" || superClass == "gnu.c.link.option.paths")
-					{
-						for(auto listOptionValue : elements_named(option, "listOptionValue"))
-						{
-							if(!listOptionValue->Attribute("value"))
-								continue;
-
-							const std::string value = listOptionValue->Attribute("value");
-//							artifact.lib_paths.insert(value);
-						}
-					}
-					else if(superClass == "gnu.cpp.compiler.option.other.other")
-					{
-						if(!option->Attribute("value"))
-							continue;
-
-						const std::string value = option->Attribute("value");
-
-//						if(artifact.other_flags.find(value) == std::string::npos)
-//							artifact.other_flags += value;
-					}
-					else
-					{
-	//					option->Print(stdout, 3);
+						if(superClass.find("c.link.option.libs") != std::string::npos)
+							extract_option_list(option, bf.c.linker.libs);
+						else if(superClass.find("c.link.option.paths") != std::string::npos)
+							extract_option_list(option, bf.c.linker.lib_paths);
 					}
 				}
 			}
 		}
 		else if(build_instr->ValueStr() == "fileInfo")
 		{
-			// TODO
-			configuration_t::build_file bf;
+			conf.build_files.emplace_back();
+			configuration_t::build_file& bf = conf.build_files.back();
+
 			build_instr->QueryStringAttribute("resourcePath", &bf.file);
 		}
 		else

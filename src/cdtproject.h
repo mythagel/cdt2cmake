@@ -10,7 +10,6 @@
 #include <string>
 #include <tinyxml.h>
 #include <vector>
-#include <set>
 
 /*
  * TODO Implement interface that reads different cdt / eclipse
@@ -60,20 +59,39 @@ public:
 		{
 			std::string path;
 
-			std::set<std::string> cpp_includes;
-			std::set<std::string> c_includes;
+			struct compiler_t
+			{
+				std::vector<std::string> includes;
+			};
+			struct linker_t
+			{
+				std::vector<std::string> libs;
+				std::vector<std::string> lib_paths;
+			};
 
-			std::vector<std::string> cpp_libs;
-			std::vector<std::string> c_libs;
+			struct
+			{
+				compiler_t compiler;
+				linker_t linker;
+			} c;
 
-			std::set<std::string> cpp_lib_paths;
-			std::set<std::string> c_lib_paths;
+			struct
+			{
+				compiler_t compiler;
+				linker_t linker;
+			} cpp;
 		};
+
+		std::vector<build_folder> build_folders;
 
 		struct build_file
 		{
 			std::string file;
 		};
+
+		std::vector<build_file> build_files;
+
+		std::string str() const;
 	};
 
 	configuration_t configuration(const std::string& cconfiguration_id);
