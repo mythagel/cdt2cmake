@@ -166,10 +166,10 @@ std::string cdt_project::configuration_t::build_folder::compiler_t::str() const
 {
 	std::stringstream s;
 	s << "{\n";
-	s << "  includes: ";
+	s << "   includes: ";
 	std::copy(includes.begin(), includes.end(), std::ostream_iterator<std::string>(s, ", "));
 	s << "\n";
-	s << "   options: '" << options << "'\n";
+	s << "   options: " << options << "\n";
 	s << "}\n";
 	return s.str();
 }
@@ -178,11 +178,13 @@ std::string cdt_project::configuration_t::build_folder::linker_t::str() const
 	std::stringstream s;
 	s << "{\n";
 
-	s << "  libs: ";
+	s << "   flags: " << flags << "\n";
+
+	s << "   libs: ";
 	std::copy(libs.begin(), libs.end(), std::ostream_iterator<std::string>(s, ", "));
 	s << "\n";
 
-	s << "  lib_paths: ";
+	s << "   lib_paths: ";
 	std::copy(lib_paths.begin(), lib_paths.end(), std::ostream_iterator<std::string>(s, ", "));
 	s << "\n";
 
@@ -216,10 +218,10 @@ std::string cdt_project::configuration_t::str() const
 	for(auto& bf : build_folders)
 	{
 		s << "folder: '" << bf.path << "' {\n";
-		s << "  cpp.compiler: " << bf.cpp.compiler.str() << "\n";
-		s << "  c.compiler: " << bf.c.compiler.str() << "\n";
-		s << "  cpp.linker: " << bf.cpp.linker.str() << "\n";
-		s << "  c.linker: " << bf.c.linker.str() << "\n";
+		s << "   cpp.compiler: " << bf.cpp.compiler.str() << "\n";
+		s << "   c.compiler: " << bf.c.compiler.str() << "\n";
+		s << "   cpp.linker: " << bf.cpp.linker.str() << "\n";
+		s << "   c.linker: " << bf.c.linker.str() << "\n";
 		s << "}\n";
 	}
 
@@ -271,73 +273,58 @@ cdt_project::configuration_t cdt_project::configuration(const std::string& cconf
 				}
 			};
 
+			auto extract_compiler_options = [&extract_option_list](TiXmlElement* tool, configuration_t::build_folder::compiler_t& compiler)
+			{
+				for(auto option : elements_named(tool, "option"))
+				{
+					std::string superClass;
+					option->QueryStringAttribute("superClass", &superClass);
+
+//					fprintf(stderr, "option: %s\n", superClass.c_str());
+
+					if(superClass.find("compiler.option.include.paths") != std::string::npos)
+						extract_option_list(option, compiler.includes);
+					else if(superClass.find("compiler.option.other.other") != std::string::npos)
+						option->QueryStringAttribute("value", &compiler.options);
+				}
+			};
+
+			auto extract_linker_options = [&extract_option_list](TiXmlElement* tool, configuration_t::build_folder::linker_t& linker)
+			{
+				for(auto option : elements_named(tool, "option"))
+				{
+					std::string superClass;
+					option->QueryStringAttribute("superClass", &superClass);
+
+//					fprintf(stderr, "option: %s\n", superClass.c_str());
+
+					if(superClass.find("link.option.libs") != std::string::npos)
+						extract_option_list(option, linker.libs);
+					else if(superClass.find("link.option.paths") != std::string::npos)
+						extract_option_list(option, linker.lib_paths);
+					else if(superClass.find("link.option.flags") != std::string::npos)
+						option->QueryStringAttribute("value", &linker.flags);
+				}
+			};
+
 			for(auto tool : elements_named(toolChain, "tool"))
 			{
 				std::string superClass;
 				tool->QueryStringAttribute("superClass", &superClass);
 
-				fprintf(stderr, "tool: %s\n", superClass.c_str());
+//				fprintf(stderr, "tool: %s\n", superClass.c_str());
 
 				if(superClass.find("cpp.compiler") != std::string::npos)
-				{
-					for(auto option : elements_named(tool, "option"))
-					{
-						std::string superClass;
-						option->QueryStringAttribute("superClass", &superClass);
+					extract_compiler_options(tool, bf.cpp.compiler);
 
-						fprintf(stderr, "option: %s\n", superClass.c_str());
-
-						if(superClass.find("cpp.compiler.option.include.paths") != std::string::npos)
-							extract_option_list(option, bf.cpp.compiler.includes);
-						else if(superClass.find("cpp.compiler.option.other.other") != std::string::npos)
-							option->QueryStringAttribute("value", &bf.cpp.compiler.options);
-					}
-				}
 				else if(superClass.find("c.compiler") != std::string::npos)
-				{
-					for(auto option : elements_named(tool, "option"))
-					{
-						std::string superClass;
-						option->QueryStringAttribute("superClass", &superClass);
+					extract_compiler_options(tool, bf.c.compiler);
 
-						fprintf(stderr, "option: %s\n", superClass.c_str());
-
-						if(superClass.find("c.compiler.option.include.paths") != std::string::npos)
-							extract_option_list(option, bf.c.compiler.includes);
-						else if(superClass.find("c.compiler.option.other") != std::string::npos)
-							option->QueryStringAttribute("value", &bf.c.compiler.options);
-					}
-				}
 				else if(superClass.find("cpp.linker") != std::string::npos)
-				{
-					for(auto option : elements_named(tool, "option"))
-					{
-						std::string superClass;
-						option->QueryStringAttribute("superClass", &superClass);
+					extract_linker_options(tool, bf.cpp.linker);
 
-						fprintf(stderr, "option: %s\n", superClass.c_str());
-
-						if(superClass.find("cpp.link.option.libs") != std::string::npos)
-							extract_option_list(option, bf.cpp.linker.libs);
-						else if(superClass.find("cpp.link.option.paths") != std::string::npos)
-							extract_option_list(option, bf.cpp.linker.lib_paths);
-					}
-				}
 				else if(superClass.find("c.linker") != std::string::npos)
-				{
-					for(auto option : elements_named(tool, "option"))
-					{
-						std::string superClass;
-						option->QueryStringAttribute("superClass", &superClass);
-
-						fprintf(stderr, "option: %s\n", superClass.c_str());
-
-						if(superClass.find("c.link.option.libs") != std::string::npos)
-							extract_option_list(option, bf.c.linker.libs);
-						else if(superClass.find("c.link.option.paths") != std::string::npos)
-							extract_option_list(option, bf.c.linker.lib_paths);
-					}
-				}
+					extract_linker_options(tool, bf.c.linker);
 			}
 		}
 		else if(build_instr->ValueStr() == "fileInfo")

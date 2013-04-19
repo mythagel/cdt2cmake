@@ -234,13 +234,13 @@ int main(int argc, char* argv[])
 //		find_sources(project_base, "", sources);
 		project.artifact.sources = std::set<std::string>(sources.begin(), sources.end());
 
-		{
-			auto sources = find_sources(project_base);
-			for(auto x : sources)
-			{
-				std::cout << x.name << " : " << x.path << "\n";
-			}
-		}
+//		{
+//			auto sources = find_sources(project_base);
+//			for(auto x : sources)
+//			{
+//				std::cout << x.name << " : " << x.path << "\n";
+//			}
+//		}
 
 //		mkdir(project.name.c_str(), 0700);
 //		std::string s = project.name + "/" + configuration_name;
