@@ -162,6 +162,34 @@ TiXmlElement* cdt_project::cconfiguration(const std::string& id)
 	return nullptr;
 }
 
+std::string cdt_project::configuration_t::build_folder::compiler_t::str() const
+{
+	std::stringstream s;
+	s << "{\n";
+	s << "  includes: ";
+	std::copy(includes.begin(), includes.end(), std::ostream_iterator<std::string>(s, ", "));
+	s << "\n";
+	s << "   options: '" << options << "'\n";
+	s << "}\n";
+	return s.str();
+}
+std::string cdt_project::configuration_t::build_folder::linker_t::str() const
+{
+	std::stringstream s;
+	s << "{\n";
+
+	s << "  libs: ";
+	std::copy(libs.begin(), libs.end(), std::ostream_iterator<std::string>(s, ", "));
+	s << "\n";
+
+	s << "  lib_paths: ";
+	std::copy(lib_paths.begin(), lib_paths.end(), std::ostream_iterator<std::string>(s, ", "));
+	s << "\n";
+
+	s << "}\n";
+	return s.str();
+}
+
 std::string cdt_project::configuration_t::str() const
 {
 	std::stringstream s;
@@ -188,30 +216,10 @@ std::string cdt_project::configuration_t::str() const
 	for(auto& bf : build_folders)
 	{
 		s << "folder: '" << bf.path << "' {\n";
-		s << "  cpp_includes: ";
-		std::copy(bf.cpp.compiler.includes.begin(), bf.cpp.compiler.includes.end(), std::ostream_iterator<std::string>(s, ", "));
-		s << "\n";
-
-		s << "  c_includes: ";
-		std::copy(bf.c.compiler.includes.begin(), bf.c.compiler.includes.end(), std::ostream_iterator<std::string>(s, ", "));
-		s << "\n";
-
-		s << "  cpp_libs: ";
-		std::copy(bf.cpp.linker.libs.begin(), bf.cpp.linker.libs.end(), std::ostream_iterator<std::string>(s, ", "));
-		s << "\n";
-
-		s << "  c_libs: ";
-		std::copy(bf.c.linker.libs.begin(), bf.c.linker.libs.end(), std::ostream_iterator<std::string>(s, ", "));
-		s << "\n";
-
-		s << "  cpp_lib_paths: ";
-		std::copy(bf.cpp.linker.lib_paths.begin(), bf.cpp.linker.lib_paths.end(), std::ostream_iterator<std::string>(s, ", "));
-		s << "\n";
-
-		s << "  c_lib_paths: ";
-		std::copy(bf.c.linker.lib_paths.begin(), bf.c.linker.lib_paths.end(), std::ostream_iterator<std::string>(s, ", "));
-		s << "\n";
-
+		s << "  cpp.compiler: " << bf.cpp.compiler.str() << "\n";
+		s << "  c.compiler: " << bf.c.compiler.str() << "\n";
+		s << "  cpp.linker: " << bf.cpp.linker.str() << "\n";
+		s << "  c.linker: " << bf.c.linker.str() << "\n";
 		s << "}\n";
 	}
 
@@ -281,6 +289,8 @@ cdt_project::configuration_t cdt_project::configuration(const std::string& cconf
 
 						if(superClass.find("cpp.compiler.option.include.paths") != std::string::npos)
 							extract_option_list(option, bf.cpp.compiler.includes);
+						else if(superClass.find("cpp.compiler.option.other.other") != std::string::npos)
+							option->QueryStringAttribute("value", &bf.cpp.compiler.options);
 					}
 				}
 				else if(superClass.find("c.compiler") != std::string::npos)
@@ -294,6 +304,8 @@ cdt_project::configuration_t cdt_project::configuration(const std::string& cconf
 
 						if(superClass.find("c.compiler.option.include.paths") != std::string::npos)
 							extract_option_list(option, bf.c.compiler.includes);
+						else if(superClass.find("c.compiler.option.other") != std::string::npos)
+							option->QueryStringAttribute("value", &bf.c.compiler.options);
 					}
 				}
 				else if(superClass.find("cpp.linker") != std::string::npos)

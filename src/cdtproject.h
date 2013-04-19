@@ -62,11 +62,18 @@ public:
 			struct compiler_t
 			{
 				std::vector<std::string> includes;
+				std::string options;
+
+				std::string str() const;
 			};
 			struct linker_t
 			{
+				std::string flags;
+
 				std::vector<std::string> libs;
 				std::vector<std::string> lib_paths;
+
+				std::string str() const;
 			};
 
 			struct
