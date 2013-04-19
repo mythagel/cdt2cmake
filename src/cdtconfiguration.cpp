@@ -14,81 +14,6 @@
 namespace cdt
 {
 
-std::string configuration_t::build_folder::compiler_t::str() const
-{
-	std::stringstream s;
-	s << "{\n";
-	s << "   includes: ";
-	std::copy(includes.begin(), includes.end(), std::ostream_iterator<std::string>(s, ", "));
-	s << "\n";
-	s << "   options: " << options << "\n";
-	s << "}\n";
-	return s.str();
-}
-std::string configuration_t::build_folder::linker_t::str() const
-{
-	std::stringstream s;
-	s << "{\n";
-
-	s << "   flags: " << flags << "\n";
-
-	s << "   libs: ";
-	std::copy(libs.begin(), libs.end(), std::ostream_iterator<std::string>(s, ", "));
-	s << "\n";
-
-	s << "   lib_paths: ";
-	std::copy(lib_paths.begin(), lib_paths.end(), std::ostream_iterator<std::string>(s, ", "));
-	s << "\n";
-
-	s << "}\n";
-	return s.str();
-}
-
-std::string configuration_t::str() const
-{
-	std::stringstream s;
-
-	s << "name: '" << name << "'\n";
-	s << "artifact: '" << artifact << "'\n";
-
-	s << "prebuild: '" << prebuild << "'\n";
-	s << "postbuild: '" << postbuild << "'\n";
-
-	switch(type)
-	{
-		case Type::Executable:
-			s << "type: '" << "Executable" << "'\n";
-			break;
-		case Type::StaticLibrary:
-			s << "type: '" << "Static Library" << "'\n";
-			break;
-		case Type::SharedLibrary:
-			s << "type: '" << "Shared Library" << "'\n";
-			break;
-	}
-
-	for(auto& bf : build_folders)
-	{
-		s << "folder: '" << bf.path << "' {\n";
-		s << "   cpp.compiler: " << bf.cpp.compiler.str() << "\n";
-		s << "   c.compiler: " << bf.c.compiler.str() << "\n";
-		s << "   cpp.linker: " << bf.cpp.linker.str() << "\n";
-		s << "   c.linker: " << bf.c.linker.str() << "\n";
-		s << "}\n";
-	}
-
-	for(auto& bf : build_files)
-	{
-		s << "file: '" << bf.file << "' {\n";
-		s << "   command: " << bf.command << "\n";
-		s << "   inputs: " << bf.inputs << "\n";
-		s << "   outputs: " << bf.outputs << "\n";
-		s << "}\n";
-	}
-
-	return s.str();
-}
-
 configuration_t::Type resolve_artifact_type(const std::string& artifact_type)
 {
 	if(artifact_type == "org.eclipse.cdt.build.core.buildArtefactType.exe")
@@ -99,6 +24,85 @@ configuration_t::Type resolve_artifact_type(const std::string& artifact_type)
 		return configuration_t::Type::SharedLibrary;
 	else
 		throw std::runtime_error("Unknown artifact type: " + artifact_type);
+}
+
+std::ostream& operator<<(std::ostream& os, const configuration_t& conf)
+{
+	os << "name: '" << conf.name << "'\n";
+	os << "artifact: '" << conf.artifact << "'\n";
+
+	os << "prebuild: '" << conf.prebuild << "'\n";
+	os << "postbuild: '" << conf.postbuild << "'\n";
+
+	switch(conf.type)
+	{
+		case configuration_t::Type::Executable:
+			os << "type: '" << "Executable" << "'\n";
+			break;
+		case configuration_t::Type::StaticLibrary:
+			os << "type: '" << "Static Library" << "'\n";
+			break;
+		case configuration_t::Type::SharedLibrary:
+			os << "type: '" << "Shared Library" << "'\n";
+			break;
+	}
+
+	for(auto& bf : conf.build_folders)
+		os << bf;
+
+	for(auto& bf : conf.build_files)
+		os << bf;
+
+	return os;
+}
+std::ostream& operator<<(std::ostream& os, const configuration_t::build_folder& bf)
+{
+	os << "folder: '" << bf.path << "' {\n";
+	os << "   cpp.compiler: " << bf.cpp.compiler << "\n";
+	os << "   c.compiler: " << bf.c.compiler << "\n";
+	os << "   cpp.linker: " << bf.cpp.linker << "\n";
+	os << "   c.linker: " << bf.c.linker << "\n";
+	os << "}\n";
+	return os;
+}
+std::ostream& operator<<(std::ostream& os, const configuration_t::build_file& bf)
+{
+	os << "file: '" << bf.file << "' {\n";
+	os << "   command: " << bf.command << "\n";
+	os << "   inputs: " << bf.inputs << "\n";
+	os << "   outputs: " << bf.outputs << "\n";
+	os << "}\n";
+	return os;
+}
+std::ostream& operator<<(std::ostream& os, const configuration_t::build_folder::compiler_t& c)
+{
+	os << "{\n";
+
+	os << "   includes: ";
+	std::copy(c.includes.begin(), c.includes.end(), std::ostream_iterator<std::string>(os, ", "));
+	os << "\n";
+
+	os << "   options: " << c.options << "\n";
+
+	os << "}\n";
+	return os;
+}
+std::ostream& operator<<(std::ostream& os, const configuration_t::build_folder::linker_t& l)
+{
+	os << "{\n";
+
+	os << "   flags: " << l.flags << "\n";
+
+	os << "   libs: ";
+	std::copy(l.libs.begin(), l.libs.end(), std::ostream_iterator<std::string>(os, ", "));
+	os << "\n";
+
+	os << "   lib_paths: ";
+	std::copy(l.lib_paths.begin(), l.lib_paths.end(), std::ostream_iterator<std::string>(os, ", "));
+	os << "\n";
+
+	os << "}\n";
+	return os;
 }
 
 }
