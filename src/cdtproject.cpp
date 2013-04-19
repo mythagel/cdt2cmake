@@ -1,5 +1,5 @@
 /*
- * cdtproject.cpp
+ * cdtproject_doc.cpp
  *
  *  Created on: 16/04/2013
  *      Author: nicholas
@@ -11,18 +11,6 @@
 #include <iterator>
 #include "tixml_iterator.h"
 
-cdt_project::configuration_t::Type resolve_artifact_type(const std::string& artifact_type)
-{
-	if(artifact_type == "org.eclipse.cdt.build.core.buildArtefactType.exe")
-		return cdt_project::configuration_t::Type::Executable;
-	else if(artifact_type == "org.eclipse.cdt.build.core.buildArtefactType.staticLib")
-		return cdt_project::configuration_t::Type::StaticLibrary;
-	else if(artifact_type == "org.eclipse.cdt.build.core.buildArtefactType.sharedLib")
-		return cdt_project::configuration_t::Type::SharedLibrary;
-	else
-		throw std::runtime_error("Unknown artifact type: " + artifact_type);
-}
-
 template <typename ex = std::runtime_error>
 void throw_if(bool cond, const std::string& what)
 {
@@ -30,24 +18,27 @@ void throw_if(bool cond, const std::string& what)
 		throw ex(what);
 }
 
-cdt_project::cdt_project(const std::string& project_base)
+namespace cdt
+{
+
+project::project(const std::string& project_base)
 {
 	const std::string project_file = project_base + ".project";
 	const std::string cproject_file = project_base + ".cproject";
 
-	throw_if(!project.LoadFile(project_file), "Unable to parse file " + project_file);
-	throw_if(!cproject.LoadFile(cproject_file), "Unable to parse file " + cproject_file);
+	throw_if(!project_doc.LoadFile(project_file), "Unable to parse file " + project_file);
+	throw_if(!cproject_doc.LoadFile(cproject_file), "Unable to parse file " + cproject_file);
 
-	auto project_root = project.RootElement();
+	auto project_root = project_doc.RootElement();
 	throw_if(project_root->ValueStr() != "projectDescription", "Unrecognised root node in" + project_file);
 
-	auto cproject_root = cproject.RootElement();
+	auto cproject_root = cproject_doc.RootElement();
 	throw_if(cproject_root->ValueStr() != "cproject", "Unrecognised root node in" + cproject_file);
 }
 
-std::string cdt_project::name()
+std::string project::name()
 {
-	TiXmlHandle doc(&project);
+	TiXmlHandle doc(&project_doc);
 
 	auto name = doc.FirstChildElement("projectDescription").FirstChildElement("name").ToElement();
 	throw_if(!name, "Missing /projectDescription/name");
@@ -58,9 +49,9 @@ std::string cdt_project::name()
 	return project_name;
 }
 
-std::string cdt_project::comment()
+std::string project::comment()
 {
-	TiXmlHandle doc(&project);
+	TiXmlHandle doc(&project_doc);
 
 	auto comment = doc.FirstChildElement("projectDescription").FirstChildElement("comment").ToElement();
 	if(!comment)
@@ -73,9 +64,9 @@ std::string cdt_project::comment()
 	return cmt;
 }
 
-std::vector<std::string> cdt_project::referenced_projects()
+std::vector<std::string> project::referenced_projects()
 {
-	TiXmlHandle doc(&project);
+	TiXmlHandle doc(&project_doc);
 
 	auto projects = doc.FirstChildElement("projectDescription").FirstChildElement("projects").ToElement();
 	if(!projects)
@@ -92,9 +83,9 @@ std::vector<std::string> cdt_project::referenced_projects()
 	return project_list;
 }
 
-std::vector<std::string> cdt_project::natures()
+std::vector<std::string> project::natures()
 {
-	TiXmlHandle doc(&project);
+	TiXmlHandle doc(&project_doc);
 
 	auto natures = doc.FirstChildElement("projectDescription").FirstChildElement("natures").ToElement();
 	if(!natures)
@@ -111,9 +102,9 @@ std::vector<std::string> cdt_project::natures()
 	return nature_list;
 }
 
-TiXmlElement* cdt_project::settings()
+TiXmlElement* project::settings()
 {
-	auto root = cproject.RootElement();
+	auto root = cproject_doc.RootElement();
 	for(auto storageModule : elements_named(root, "storageModule"))
 	{
 		auto moduleId  = storageModule->Attribute("moduleId");
@@ -124,7 +115,7 @@ TiXmlElement* cdt_project::settings()
 	return nullptr;
 }
 
-std::vector<std::string> cdt_project::cconfigurations()
+std::vector<std::string> project::cconfigurations()
 {
 	auto cdt_settings = settings();
 	if(!cdt_settings)
@@ -143,7 +134,7 @@ std::vector<std::string> cdt_project::cconfigurations()
 	return configs;
 }
 
-TiXmlElement* cdt_project::cconfiguration(const std::string& id)
+TiXmlElement* project::cconfiguration(const std::string& id)
 {
 	auto cdt_settings = settings();
 	if(!cdt_settings)
@@ -162,79 +153,7 @@ TiXmlElement* cdt_project::cconfiguration(const std::string& id)
 	return nullptr;
 }
 
-std::string cdt_project::configuration_t::build_folder::compiler_t::str() const
-{
-	std::stringstream s;
-	s << "{\n";
-	s << "   includes: ";
-	std::copy(includes.begin(), includes.end(), std::ostream_iterator<std::string>(s, ", "));
-	s << "\n";
-	s << "   options: " << options << "\n";
-	s << "}\n";
-	return s.str();
-}
-std::string cdt_project::configuration_t::build_folder::linker_t::str() const
-{
-	std::stringstream s;
-	s << "{\n";
-
-	s << "   flags: " << flags << "\n";
-
-	s << "   libs: ";
-	std::copy(libs.begin(), libs.end(), std::ostream_iterator<std::string>(s, ", "));
-	s << "\n";
-
-	s << "   lib_paths: ";
-	std::copy(lib_paths.begin(), lib_paths.end(), std::ostream_iterator<std::string>(s, ", "));
-	s << "\n";
-
-	s << "}\n";
-	return s.str();
-}
-
-std::string cdt_project::configuration_t::str() const
-{
-	std::stringstream s;
-
-	s << "name: '" << name << "'\n";
-	s << "artifact: '" << artifact << "'\n";
-
-	s << "prebuild: '" << prebuild << "'\n";
-	s << "postbuild: '" << postbuild << "'\n";
-
-	switch(type)
-	{
-		case Type::Executable:
-			s << "type: '" << "Executable" << "'\n";
-			break;
-		case Type::StaticLibrary:
-			s << "type: '" << "Static Library" << "'\n";
-			break;
-		case Type::SharedLibrary:
-			s << "type: '" << "Shared Library" << "'\n";
-			break;
-	}
-
-	for(auto& bf : build_folders)
-	{
-		s << "folder: '" << bf.path << "' {\n";
-		s << "   cpp.compiler: " << bf.cpp.compiler.str() << "\n";
-		s << "   c.compiler: " << bf.c.compiler.str() << "\n";
-		s << "   cpp.linker: " << bf.cpp.linker.str() << "\n";
-		s << "   c.linker: " << bf.c.linker.str() << "\n";
-		s << "}\n";
-	}
-
-	for(auto& bf : build_files)
-	{
-		s << "file: '" << bf.file << "' {\n";
-		s << "}\n";
-	}
-
-	return s.str();
-}
-
-cdt_project::configuration_t cdt_project::configuration(const std::string& cconfiguration_id)
+configuration_t project::configuration(const std::string& cconfiguration_id)
 {
 	configuration_t conf;
 	auto configuration = cdtBuildSystem_configuration(cconfiguration_id);
@@ -333,6 +252,29 @@ cdt_project::configuration_t cdt_project::configuration(const std::string& cconf
 			configuration_t::build_file& bf = conf.build_files.back();
 
 			build_instr->QueryStringAttribute("resourcePath", &bf.file);
+
+			for(auto tool : elements_named(build_instr, "tool"))
+			{
+				std::string customBuildStep;
+				tool->QueryStringAttribute("customBuildStep", &customBuildStep);
+
+				if(customBuildStep == "true")
+				{
+					tool->QueryStringAttribute("command", &bf.command);
+
+					if(auto inputType = tool->FirstChildElement("inputType"))
+					{
+						if(auto additionalInput = inputType->FirstChildElement("additionalInput"))
+						{
+							additionalInput->QueryStringAttribute("paths", &bf.inputs);
+						}
+					}
+					if(auto outputType = tool->FirstChildElement("outputType"))
+					{
+						outputType->QueryStringAttribute("outputNames", &bf.outputs);
+					}
+				}
+			}
 		}
 		else
 		{
@@ -343,7 +285,7 @@ cdt_project::configuration_t cdt_project::configuration(const std::string& cconf
 	return conf;
 }
 
-TiXmlElement* cdt_project::cdtBuildSystem_configuration(const std::string& cconfiguration_id)
+TiXmlElement* project::cdtBuildSystem_configuration(const std::string& cconfiguration_id)
 {
 	auto cdt_cconfiguration = cconfiguration(cconfiguration_id);
 	if(!cdt_cconfiguration)
@@ -357,4 +299,6 @@ TiXmlElement* cdt_project::cdtBuildSystem_configuration(const std::string& cconf
 	}
 
 	return nullptr;
+}
+
 }

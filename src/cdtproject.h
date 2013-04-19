@@ -10,6 +10,10 @@
 #include <string>
 #include <tinyxml.h>
 #include <vector>
+#include "cdtconfiguration.h"
+
+namespace cdt
+{
 
 /*
  * TODO Implement interface that reads different cdt / eclipse
@@ -17,16 +21,15 @@
  * create a cmake project from it.
  * Expand the Project structure to represent a cmake project
  * more completely.
- *
- * http://help.eclipse.org/indigo/index.jsp?topic=%2Forg.eclipse.platform.doc.isv%2Freference%2Fmisc%2Fproject_description_file.html
  */
-class cdt_project
+
+class project
 {
 private:
-	TiXmlDocument project;
-	TiXmlDocument cproject;
+	TiXmlDocument project_doc;
+	TiXmlDocument cproject_doc;
 public:
-	cdt_project(const std::string& project_base);
+	project(const std::string& project_base);
 
 	// .project properties
 	std::string name();
@@ -39,71 +42,11 @@ public:
 	std::vector<std::string> cconfigurations();
 	TiXmlElement* cconfiguration(const std::string& id);
 
-	struct configuration_t
-	{
-		std::string name;
-		std::string artifact;
-
-		std::string prebuild;
-		std::string postbuild;
-
-		enum class Type
-		{
-			Executable,
-			StaticLibrary,
-			SharedLibrary
-		} type;
-
-		// TODO represent build commands, folders and files.
-		struct build_folder
-		{
-			std::string path;
-
-			struct compiler_t
-			{
-				std::vector<std::string> includes;
-				std::string options;
-
-				std::string str() const;
-			};
-			struct linker_t
-			{
-				std::string flags;
-
-				std::vector<std::string> libs;
-				std::vector<std::string> lib_paths;
-
-				std::string str() const;
-			};
-
-			struct
-			{
-				compiler_t compiler;
-				linker_t linker;
-			} c;
-
-			struct
-			{
-				compiler_t compiler;
-				linker_t linker;
-			} cpp;
-		};
-
-		std::vector<build_folder> build_folders;
-
-		struct build_file
-		{
-			std::string file;
-		};
-
-		std::vector<build_file> build_files;
-
-		std::string str() const;
-	};
-
 	configuration_t configuration(const std::string& cconfiguration_id);
 
 	TiXmlElement* cdtBuildSystem_configuration(const std::string& cconfiguration_id);
 };
+
+}
 
 #endif /* CDTPROJECT_H_ */

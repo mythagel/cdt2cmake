@@ -62,7 +62,7 @@ int main(int argc, char* argv[])
 	if(project_base.back() != '/')
 		project_base += '/';
 
-	cdt_project cdtproject(project_base);
+	cdt::project cdtproject(project_base);
 
 	{
 		auto confs = cdtproject.cconfigurations();
