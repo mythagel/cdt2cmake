@@ -22,9 +22,10 @@ namespace cdt
 {
 
 project::project(const std::string& project_base)
+ : project_path(project_base)
 {
-	const std::string project_file = project_base + ".project";
-	const std::string cproject_file = project_base + ".cproject";
+	const std::string project_file = project_path + ".project";
+	const std::string cproject_file = project_path + ".cproject";
 
 	throw_if(!project_doc.LoadFile(project_file), "Unable to parse file " + project_file);
 	throw_if(!cproject_doc.LoadFile(cproject_file), "Unable to parse file " + cproject_file);
@@ -34,6 +35,11 @@ project::project(const std::string& project_base)
 
 	auto cproject_root = cproject_doc.RootElement();
 	throw_if(cproject_root->ValueStr() != "cproject", "Unrecognised root node in" + cproject_file);
+}
+
+std::string project::path() const
+{
+	return project_path;
 }
 
 std::string project::name()

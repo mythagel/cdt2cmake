@@ -7,6 +7,9 @@
 
 #include "project.h"
 #include "cdtproject.h"
+#include "sourcediscovery.h"
+#include <map>
+#include <vector>
 
 namespace cmake
 {
@@ -100,7 +103,19 @@ project_t build_from(cdt::project& cdtproject)
 	project_t p;
 	p.name = cdtproject.name();
 
+	std::map<std::string, std::vector<std::string> > source_paths;
+	{
+		auto sources = find_sources(cdtproject.path(), is_source_filename);
+		for(const auto& source : sources)
+			source_paths[source.path].push_back(source.name);
+	}
+
+	for(const auto& source_folder : source_paths)
+		p.subdirectories.push_back(source_folder.first);
+
 	auto confs = cdtproject.cconfigurations();
+
+	// testing
 	for(const auto& conf : confs)
 		std::cout << cdtproject.configuration(conf) << "\n";
 
@@ -158,6 +173,9 @@ std::ostream& operator<<(std::ostream& os, const project_t& p)
 		os << ")\n";
 		os << "\n";
 	}
+
+	for(auto& dir : p.subdirectories)
+		os << "add_subdirectory(" << dir << ")\n";
 
 	os << "\n";
 	return os;

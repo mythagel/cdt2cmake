@@ -26,10 +26,14 @@ namespace cdt
 class project
 {
 private:
+	std::string project_path;
+
 	TiXmlDocument project_doc;
 	TiXmlDocument cproject_doc;
 public:
 	project(const std::string& project_base);
+
+	std::string path() const;
 
 	// .project properties
 	std::string name();

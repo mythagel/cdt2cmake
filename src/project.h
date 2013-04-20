@@ -44,6 +44,8 @@ struct project_t
 	std::string name;
 	artifact_t artifact;
 
+	std::vector<std::string> subdirectories;
+
 	void clean();
 };
 
