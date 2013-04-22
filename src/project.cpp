@@ -115,6 +115,16 @@ project_t build_from(cdt::project& cdtproject)
 
 	auto confs = cdtproject.cconfigurations();
 
+	for(const auto& source_folder : source_paths)
+	{
+		std::cout << source_folder.first << "/CMakeLists.txt\n";
+
+		for(const auto& source : source_folder.second)
+			std::cout << "list (APPEND SOURCES " << source << ")\n";
+
+		std::cout << "\n";
+	}
+
 	// testing
 	for(const auto& conf : confs)
 		std::cout << cdtproject.configuration(conf) << "\n";
