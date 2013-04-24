@@ -10,6 +10,7 @@
 #include "sourcediscovery.h"
 #include <map>
 #include <vector>
+#include "listfile.h"
 
 namespace cmake
 {
