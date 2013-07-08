@@ -15,6 +15,8 @@
 namespace cmake
 {
 
+/*
+TODO logic encoded in the following has to be converted to new interface.
 void project_t::clean()
 {
 	{
@@ -97,12 +99,13 @@ void project_t::clean()
 		}
 		artifact.libs = libs;
 	}
-}
+}*/
 
 project_t build_from(cdt::project& cdtproject)
 {
 	project_t p;
 	p.name = cdtproject.name();
+	p.base_path = cdtproject.path();
 
 	std::map<std::string, std::vector<std::string> > source_paths;
 	{
@@ -112,30 +115,66 @@ project_t build_from(cdt::project& cdtproject)
 	}
 
 	for(const auto& source_folder : source_paths)
+	{
 		p.subdirectories.push_back(source_folder.first);
+	}
 
 	auto confs = cdtproject.cconfigurations();
 
 	for(const auto& source_folder : source_paths)
 	{
-		std::cout << source_folder.first << "/CMakeLists.txt\n";
+		std::cerr << source_folder.first << "/CMakeLists.txt\n";
 
 		for(const auto& source : source_folder.second)
-			std::cout << "list (APPEND SOURCES " << source << ")\n";
+			std::cerr << "list (APPEND SOURCES " << source << ")\n";
 
-		std::cout << "\n";
+		std::cerr << "\n";
 	}
 
 	// testing
-	for(const auto& conf : confs)
-		std::cout << cdtproject.configuration(conf) << "\n";
+	for(const auto& conf_name : confs)
+	{
+		auto configuration = cdtproject.configuration(conf_name);
+		std::cerr << configuration << "\n";
+		
+		
+	}
 
 	return p;
 }
 
+void generate(const project_t& p)
+{
+	for(auto& dir : p.subdirectories)
+	{
+		auto full_path = p.base_path + dir;
+		if(dir.empty())
+		{
+			std::cerr << full_path << "CMakeLists.txt\n";
+			auto& os = std::cerr;
+			
+			os << "cmake_minimum_required (VERSION 2.6)\n";
+			os << "project (" << p.name << ")\n";
+			os << "\n";
+			for(auto& dir : p.subdirectories)
+			{
+				if(!dir.empty())
+					os << "add_subdirectory(" << dir << ")\n";
+			}
+		}
+		else
+		{
+			std::cerr << full_path << "/CMakeLists.txt\n";
+			auto& os = std::cerr;
+		}
+
+		std::cerr << "\n";
+	}
+}
+
 std::ostream& operator<<(std::ostream& os, const project_t& p)
 {
-	os << "cmake_minimum_required (VERSION 2.8)\n";
+	os << "cmake_minimum_required (VERSION 2.6)\n";
 	os << "project (" << p.name << ")\n";
 	os << "\n";
 

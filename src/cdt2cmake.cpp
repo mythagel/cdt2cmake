@@ -85,8 +85,11 @@ int main(int argc, char* argv[])
 			cdt::project cdtproject(project_base);
 
 			auto project = cmake::build_from(cdtproject);
-
-			std::cout << project;
+			
+			if(generate)
+				cmake::generate(project);
+			else
+				std::cout << project;
 		}
 		catch(const std::exception& ex)
 		{

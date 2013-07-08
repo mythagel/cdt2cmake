@@ -167,6 +167,8 @@ configuration_t project::configuration(const std::string& cconfiguration_id)
 
 	configuration->QueryStringAttribute("name", &conf.name);
 	configuration->QueryStringAttribute("artifactName", &conf.artifact);
+	if(conf.artifact == "${ProjName}")
+		conf.artifact = name();
 	configuration->QueryStringAttribute("prebuildStep", &conf.prebuild);
 	configuration->QueryStringAttribute("postbuildStep", &conf.postbuild);
 

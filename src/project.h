@@ -42,14 +42,14 @@ struct artifact_t
 struct project_t
 {
 	std::string name;
+	std::string base_path;
 	artifact_t artifact;
 
 	std::vector<std::string> subdirectories;
-
-	void clean();
 };
 
 project_t build_from(cdt::project& cdtproject);
+void generate(const project_t& p);
 
 std::ostream& operator<<(std::ostream& os, const project_t& p);
 
