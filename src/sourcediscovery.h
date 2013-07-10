@@ -12,6 +12,8 @@
 #include <functional>
 
 bool is_source_filename(const std::string& filename);
+bool is_c_source_filename(const std::string& filename);
+bool is_cxx_source_filename(const std::string& filename);
 
 struct source_file
 {

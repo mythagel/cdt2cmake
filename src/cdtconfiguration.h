@@ -71,6 +71,8 @@ struct configuration_t
 	std::vector<build_file> build_files;
 };
 
+std::string to_string(configuration_t::Type t);
+
 configuration_t::Type resolve_artifact_type(const std::string& artifact_type);
 
 std::ostream& operator<<(std::ostream& os, const configuration_t& conf);

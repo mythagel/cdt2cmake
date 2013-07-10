@@ -14,6 +14,20 @@
 namespace cdt
 {
 
+std::string to_string(configuration_t::Type t)
+{
+	switch(t)
+	{
+		case configuration_t::Type::Executable:
+			return "EXECUTABLE";
+		case configuration_t::Type::StaticLibrary:
+			return "STATIC";
+		case configuration_t::Type::SharedLibrary:
+			return "SHARED";
+	}
+	return "UNKNOWN";
+}
+
 configuration_t::Type resolve_artifact_type(const std::string& artifact_type)
 {
 	if(artifact_type == "org.eclipse.cdt.build.core.buildArtefactType.exe")
@@ -28,6 +42,7 @@ configuration_t::Type resolve_artifact_type(const std::string& artifact_type)
 
 std::ostream& operator<<(std::ostream& os, const configuration_t& conf)
 {
+	os << "{\n";
 	os << "name: '" << conf.name << "'\n";
 	os << "artifact: '" << conf.artifact << "'\n";
 
@@ -53,6 +68,7 @@ std::ostream& operator<<(std::ostream& os, const configuration_t& conf)
 	for(auto& bf : conf.build_files)
 		os << bf;
 
+	os << "}\n";
 	return os;
 }
 std::ostream& operator<<(std::ostream& os, const configuration_t::build_folder& bf)
@@ -78,30 +94,30 @@ std::ostream& operator<<(std::ostream& os, const configuration_t::build_folder::
 {
 	os << "{\n";
 
-	os << "   includes: ";
+	os << "      includes: ";
 	std::copy(c.includes.begin(), c.includes.end(), std::ostream_iterator<std::string>(os, ", "));
 	os << "\n";
 
-	os << "   options: " << c.options << "\n";
+	os << "      options: " << c.options << "\n";
 
-	os << "}\n";
+	os << "   }\n";
 	return os;
 }
 std::ostream& operator<<(std::ostream& os, const configuration_t::build_folder::linker_t& l)
 {
 	os << "{\n";
 
-	os << "   flags: " << l.flags << "\n";
+	os << "      flags: " << l.flags << "\n";
 
-	os << "   libs: ";
+	os << "      libs: ";
 	std::copy(l.libs.begin(), l.libs.end(), std::ostream_iterator<std::string>(os, ", "));
 	os << "\n";
 
-	os << "   lib_paths: ";
+	os << "      lib_paths: ";
 	std::copy(l.lib_paths.begin(), l.lib_paths.end(), std::ostream_iterator<std::string>(os, ", "));
 	os << "\n";
 
-	os << "}\n";
+	os << "   }\n";
 	return os;
 }
 
