@@ -11,6 +11,9 @@
 #include <map>
 #include <vector>
 #include <algorithm>
+#include <fstream>
+#include <sstream>
+#include <iterator>
 #include "listfile.h"
 
 namespace cmake
@@ -383,7 +386,19 @@ void generate(cdt::project& cdtproject, bool write_files)
 		}
 	}
 
-	std::ostream& master = std::cout;
+	std::streambuf* buf;
+	std::ofstream of;
+	if(write_files)
+	{
+		of.open(project_path + "/CMakeLists.txt");
+		buf = of.rdbuf();
+	}
+	else
+	{
+		buf = std::cout.rdbuf();
+	}
+	std::ostream master(buf);
+	
 	master << "cmake_minimum_required (VERSION 2.6)\n";
 	master << "project (" << project_name << ")\n";
 	master << "\n";
@@ -391,7 +406,6 @@ void generate(cdt::project& cdtproject, bool write_files)
 	for(auto& ac : artifact_configurations)
 	{
 		auto& c = ac.second;
-		std::cerr << c;
 		
 		switch(c.type)
 		{
@@ -409,26 +423,101 @@ void generate(cdt::project& cdtproject, bool write_files)
 		{
 			for(const auto& source : source_folder.second)
 			{
-				master << (sources.size() > 3 ? "\n   " : " ") << source;
+				master << (source_folder.second.size() > 3 ? "\n   " : " ") << (source_folder.first.empty() ? std::string{} : source_folder.first + "/") << source;
 			}
+			master << "\n";
 		}
 		master << ")\n";
+		
+		if(!c.prebuild.empty() || !c.postbuild.empty())
+		{
+			master << "\n";
+			master << "# prebuild: " << c.prebuild << "\n";
+			master << "# postbuild: " << c.postbuild << "\n";
+			master << "\n";
+		}
 		
 		for(auto& bf : c.build_folders)
 		{
 			if(bf.path.empty())
 			{
 				// master
+				
+				{
+					if(!bf.cpp.compiler.includes.empty() || !bf.c.compiler.includes.empty())
+					{
+						master << "set_target_properties (" << c.artifact << " INCLUDE_DIRECTORIES";
+						if(lang_cxx)
+						{
+							for(auto& inc : bf.cpp.compiler.includes)
+								master << (bf.cpp.compiler.includes.size() > 3 ? "\n   " : " ") << '"' << inc << '"';
+						}
+						if(lang_c)
+						{
+							for(auto& inc : bf.c.compiler.includes)
+								master << (bf.c.compiler.includes.size() > 3 ? "\n   " : " ") << '"' << inc << '"';
+						}
+						master << ")\n\n";
+					}
+					
+					std::vector<std::string> options;
+					if(lang_cxx)
+					{
+						std::stringstream ss(bf.cpp.compiler.options);
+						std::vector<std::string> opts(std::istream_iterator<std::string>{ss}, std::istream_iterator<std::string>{});
+						for(auto& o : opts)
+						{
+							if(std::find(begin(options), end(options), o) == end(options))
+								options.push_back(o);
+						}
+					}
+					if(lang_c)
+					{
+						std::stringstream ss(bf.c.compiler.options);
+						std::vector<std::string> opts(std::istream_iterator<std::string>{ss}, std::istream_iterator<std::string>{});
+						for(auto& o : opts)
+						{
+							if(std::find(begin(options), end(options), o) == end(options))
+								options.push_back(o);
+						}
+					}
+					
+					if(!options.empty())
+					{
+						master << "set_target_properties(" << c.artifact << " PROPERTIES COMPILE_FLAGS \"";
+						for(auto& o : options)
+							master << o << ' ';
+						master << "\")\n\n";
+					}
+				}
+				
 				if(lang_cxx)
 				{
 					// use c++ linker settings.
+					if(!bf.cpp.linker.flags.empty())
+					{
+						std::vector<std::string> flags;
+						
+						std::stringstream ss(bf.cpp.linker.flags);
+						std::vector<std::string> opts(std::istream_iterator<std::string>{ss}, std::istream_iterator<std::string>{});
+						for(auto& o : opts)
+						{
+							if(std::find(begin(flags), end(flags), o) == end(flags))
+								flags.push_back(o);
+						}
+						
+						master << "set_target_properties(" << c.artifact << " PROPERTIES LINK_FLAGS \"";
+						for(auto& o : flags)
+							master << o << ' ';
+						master << "\")\n";
+					}
+				
 					if(!bf.cpp.linker.lib_paths.empty())
 					{
 						master << "link_directories (";
 						for(auto& path : bf.cpp.linker.lib_paths)
 							master << (bf.cpp.linker.lib_paths.size() > 3 ? "\n   " : " ") << path;
 						master << ")\n";
-						master << "\n";
 					}
 
 					if(!bf.cpp.linker.libs.empty())
@@ -436,7 +525,43 @@ void generate(cdt::project& cdtproject, bool write_files)
 						master << "target_link_libraries (" << c.artifact;
 						for(auto& lib : bf.cpp.linker.libs)
 							master << (bf.cpp.linker.libs.size() > 3 ? "\n   " : " ") << lib;
+						master << ")\n\n";
+					}
+				}
+				else
+				{
+					if(!bf.c.linker.flags.empty())
+					{
+						std::vector<std::string> flags;
+						
+						std::stringstream ss(bf.c.linker.flags);
+						std::vector<std::string> opts(std::istream_iterator<std::string>{ss}, std::istream_iterator<std::string>{});
+						for(auto& o : opts)
+						{
+							if(std::find(begin(flags), end(flags), o) == end(flags))
+								flags.push_back(o);
+						}
+						
+						master << "set_target_properties(" << c.artifact << " PROPERTIES LINK_FLAGS \"";
+						for(auto& o : flags)
+							master << o << ' ';
+						master << "\")\n";
+					}
+				
+					if(!bf.c.linker.lib_paths.empty())
+					{
+						master << "link_directories (";
+						for(auto& path : bf.c.linker.lib_paths)
+							master << (bf.c.linker.lib_paths.size() > 3 ? "\n   " : " ") << path;
 						master << ")\n";
+					}
+
+					if(!bf.c.linker.libs.empty())
+					{
+						master << "target_link_libraries (" << c.artifact;
+						for(auto& lib : bf.c.linker.libs)
+							master << (bf.c.linker.libs.size() > 3 ? "\n   " : " ") << lib;
+						master << ")\n\n";
 					}
 				}
 			}
@@ -447,8 +572,15 @@ void generate(cdt::project& cdtproject, bool write_files)
 				// subdirectory
 			}
 		}
-
+		
+		for(auto& bf : c.build_files)
+		{
+			// TODO
+			master << "# TODO " << bf.file << '\n';
+		}
 	}
+	
+	master << '\n';
 }
 
 }

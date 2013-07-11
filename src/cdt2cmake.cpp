@@ -87,7 +87,7 @@ int main(int argc, char* argv[])
 		}
 		catch(const std::exception& ex)
 		{
-			std::cout << "Error: " << ex.what() << "\n";
+			std::cerr << "Error: " << ex.what() << "\n";
 		}
 	}
 	return 0;
