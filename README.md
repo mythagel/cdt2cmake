@@ -5,7 +5,7 @@ Eclipse CDT to CMake converter
 
 An ugly, awful, hackish utility written to liberate code from Eclipse CDT.
 
-Works only for Managed Builder CDT projects on linux. Probably doesn't work for complicated managed build projects.
+Works only for Managed Builder CDT projects on linux. Probably doesn't work for complicated (= build configuration per folder) managed build projects.
 
 Works good enough for my purposes, not likely to be improved.
 
